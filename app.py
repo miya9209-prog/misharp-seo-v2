@@ -1,6 +1,7 @@
 import re
 import html
 import json
+import time
 from io import StringIO
 from urllib.parse import urljoin, urlparse
 
@@ -119,10 +120,39 @@ def is_valid_url(url: str) -> bool:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_html(url: str) -> str:
-    headers = {"User-Agent": USER_AGENT}
-    response = requests.get(url, headers=headers, timeout=20)
-    response.raise_for_status()
-    return response.text
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Referer": "https://www.google.com/",
+    }
+
+    session = requests.Session()
+    last_error = None
+
+    for attempt in range(3):
+        try:
+            response = session.get(url, headers=headers, timeout=20)
+
+            if response.status_code == 429:
+                time.sleep(2 + attempt * 2)
+                last_error = requests.HTTPError(f"429 Too Many Requests for url: {url}")
+                continue
+
+            response.raise_for_status()
+
+            if response.apparent_encoding:
+                response.encoding = response.apparent_encoding
+
+            return response.text
+
+        except requests.RequestException as e:
+            last_error = e
+            time.sleep(1 + attempt)
+
+    raise last_error
 
 
 def extract_meta(soup: BeautifulSoup, key: str, attr: str = "property") -> str:
@@ -671,17 +701,11 @@ def extract_product_links(list_url: str) -> list[str]:
 
             full = urljoin(list_url, href)
 
-            # 상품 링크 후보만 통과
-            if (
-                "product/detail.html" in full
-                or "/products/" in full
-            ):
-                # 스마트스토어 리뷰/문의 링크 제외
+            if "product/detail.html" in full or "/products/" in full:
                 if "/review" in full or "/qna" in full:
                     continue
                 links.append(full)
 
-    # products/숫자 형태 우선 정리
     cleaned = []
     for link in links:
         parsed = urlparse(link)
@@ -780,11 +804,9 @@ def render_usage_tips() -> None:
         - 9 SEO 점수: 품질 점검
         - 10 블로그 SEO 문장: 블로그 / SNS 초안
 
-        **SaaS 활용 포인트**
-        - 자사몰 상품 SEO 일괄 정비
-        - 스마트스토어 상품 SEO 분석
-        - 경쟁사 상품 제목/키워드 참고
-        - 카테고리 단위 SEO CSV 다운로드
+        **주의**
+        - 스마트스토어는 네이버 차단 정책 때문에 분석이 제한될 수 있습니다.
+        - 자사몰 URL 분석이 가장 안정적입니다.
         """
     )
 
@@ -902,13 +924,11 @@ def render_bulk_results(results: list[dict], errors: list[str], title: str) -> N
     df = results_to_dataframe(results)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
-    csv_buffer = StringIO()
-    df.to_csv(csv_buffer, index=False)
-    csv_data = csv_buffer.getvalue()
+    csv_data = df.to_csv(index=False, encoding="utf-8-sig")
 
     st.download_button(
         "CSV 다운로드",
-        data=csv_data,
+        data=csv_data.encode("utf-8-sig"),
         file_name="misharp_seo_os_results.csv",
         mime="text/csv",
         use_container_width=True,
@@ -977,8 +997,18 @@ def main() -> None:
                 with st.spinner("상품 정보를 분석하고 SEO를 생성하는 중입니다..."):
                     result = analyze_product(url.strip())
                 render_single_result(result)
+
             except requests.HTTPError as e:
-                st.error(f"페이지 요청 중 오류가 발생했습니다: {e}")
+                error_text = str(e)
+
+                if "429" in error_text and "smartstore.naver.com" in url:
+                    st.warning(
+                        "스마트스토어는 네이버 차단 정책으로 인해 현재 분석이 제한될 수 있습니다. "
+                        "잠시 후 다시 시도하거나, 가능하면 미샵 자사몰 URL로 분석해주세요."
+                    )
+                else:
+                    st.error(f"페이지 요청 중 오류가 발생했습니다: {e}")
+
             except requests.RequestException as e:
                 st.error(f"네트워크 오류가 발생했습니다: {e}")
             except Exception as e:
