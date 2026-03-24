@@ -1,5 +1,2 @@
 streamlit
-requests
-beautifulsoup4
-pandas
-lxml
+openai>=1.30.0
