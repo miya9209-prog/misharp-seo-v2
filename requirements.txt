@@ -1,2 +1,5 @@
 streamlit
 openai>=1.30.0
+beautifulsoup4
+requests
+lxml
