@@ -5,7 +5,7 @@ import json
 import streamlit as st
 
 APP_TITLE = "SEO 생성"
-PROMPT_VERSION = "AI 검색 강화형 v1"
+PROMPT_VERSION = "AI 검색 강화형 v1.1"
 
 def get_client():
     try:
@@ -127,14 +127,21 @@ def render_result(data: dict):
     alt_text = clean_text(data.get("alt_text", ""))
 
     st.success("SEO 생성이 완료되었습니다.")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.text_area("1. 브라우저 타이틀(title)", value=title, height=100)
-        st.text_area("2. 메타태그1 author", value=author, height=68)
-        st.text_area("3. 메타태그2 description", value=description, height=120)
-    with c2:
-        st.text_area("4. 메타태그3 keywords", value=keywords, height=160)
-        st.text_area("5. 상품 이미지 alt 텍스트", value=alt_text, height=68)
+
+    st.markdown('<div class="result-label">1. 브라우저 타이틀(title)</div>', unsafe_allow_html=True)
+    st.text_area("title_hidden", value=title, height=100, label_visibility="collapsed")
+
+    st.markdown('<div class="result-label">2. 메타태그1 author (카페24 SEO 입력)</div>', unsafe_allow_html=True)
+    st.text_area("author_hidden", value=author, height=68, label_visibility="collapsed")
+
+    st.markdown('<div class="result-label">3. 메타태그2 description (카페24 SEO 입력)</div>', unsafe_allow_html=True)
+    st.text_area("description_hidden", value=description, height=120, label_visibility="collapsed")
+
+    st.markdown('<div class="result-label">4. 메타태그3 keywords (카페24 SEO 입력)</div>', unsafe_allow_html=True)
+    st.text_area("keywords_hidden", value=keywords, height=160, label_visibility="collapsed")
+
+    st.markdown('<div class="result-label">5. 상품 이미지 alt 텍스트</div>', unsafe_allow_html=True)
+    st.text_area("alt_hidden", value=alt_text, height=68, label_visibility="collapsed")
 
     plain_output = "\n".join([
         f"1.브라우저 타이틀(title) : {title}",
@@ -168,6 +175,26 @@ def app():
         }
         .seo-help {
             color:#666; font-size:14px; line-height:1.7;
+        }
+        .result-label {
+            color:#111111 !important;
+            font-size:18px;
+            font-weight:800;
+            line-height:1.5;
+            margin:14px 0 8px 2px;
+            background:#f4f4f6;
+            border:1px solid #e5e5e8;
+            border-radius:12px;
+            padding:10px 14px;
+        }
+        .stTextArea label, .stTextInput label, .stSelectbox label {
+            color:#111111 !important;
+            font-weight:700 !important;
+            opacity:1 !important;
+        }
+        .stTextArea textarea, .stTextInput input {
+            color:#111111 !important;
+            background:#ffffff !important;
         }
         </style>
         """,
@@ -215,6 +242,7 @@ def app():
         - 숏폼 검색 키워드 감안
         - 상황형/체형고민형/타깃형 키워드 조합
         - 결과는 카페24에 바로 복붙 가능한 1~5 항목 형식
+        - 결과 영역 타이틀 가시성 개선
         """
     )
     st.markdown('</div>', unsafe_allow_html=True)
