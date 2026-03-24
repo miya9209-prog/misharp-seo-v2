@@ -4,8 +4,7 @@ import re
 import json
 import streamlit as st
 
-APP_TITLE = "SEO 생성"
-PROMPT_VERSION = "AI 검색 강화형 v1.1"
+PROMPT_VERSION = "AI 검색 강화형 v1.2"
 
 def get_client():
     try:
@@ -27,8 +26,7 @@ def get_client():
     return OpenAI(api_key=api_key)
 
 SYSTEM_PROMPT = """너는 미샵(MISHARP)의 여성의류 SEO/AI검색 최적화 실무 담당자다.
-사용자가 입력한 상품 URL, 상품명, 상품정보를 바탕으로
-카페24 상품등록용 SEO 필드를 생성한다.
+사용자가 입력한 상품 URL, 상품명, 상품정보를 바탕으로 카페24 상품등록용 SEO 필드를 생성한다.
 
 반드시 아래 원칙을 지켜라.
 - 네이버, 다음, 구글, Bing 검색성과 클릭률을 함께 고려
@@ -103,7 +101,6 @@ def call_model(product_url: str, product_name: str, product_info: str, model_nam
         product_name=product_name.strip(),
         product_info=product_info.strip(),
     )
-
     response = client.chat.completions.create(
         model=model_name,
         temperature=0.5,
@@ -113,11 +110,31 @@ def call_model(product_url: str, product_name: str, product_info: str, model_nam
         ],
         response_format={"type": "json_object"},
     )
-    content = response.choices[0].message.content
-    return json.loads(content)
+    return json.loads(response.choices[0].message.content)
 
 def clean_text(v: str) -> str:
     return re.sub(r"\s+", " ", (v or "")).strip()
+
+def section_header(text: str):
+    st.markdown(
+        f"""
+        <div style="
+            margin:18px 0 8px 0;
+            padding:12px 14px;
+            border-radius:12px;
+            background:#111827;
+            color:#ffffff;
+            font-size:18px;
+            font-weight:800;
+            line-height:1.5;
+            border:1px solid rgba(255,255,255,0.14);
+            display:block;
+            visibility:visible;
+            opacity:1;
+        ">{text}</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_result(data: dict):
     title = clean_text(data.get("title", ""))
@@ -127,21 +144,22 @@ def render_result(data: dict):
     alt_text = clean_text(data.get("alt_text", ""))
 
     st.success("SEO 생성이 완료되었습니다.")
+    st.markdown("## 생성 결과")
 
-    st.markdown('<div class="result-label">1. 브라우저 타이틀(title)</div>', unsafe_allow_html=True)
-    st.text_area("title_hidden", value=title, height=100, label_visibility="collapsed")
+    section_header("1. 브라우저 타이틀(title) (카페24 SEO 입력)")
+    st.text_area("seo_result_title", value=title, height=95, label_visibility="collapsed")
 
-    st.markdown('<div class="result-label">2. 메타태그1 author (카페24 SEO 입력)</div>', unsafe_allow_html=True)
-    st.text_area("author_hidden", value=author, height=68, label_visibility="collapsed")
+    section_header("2. 메타태그1 author (카페24 SEO 입력)")
+    st.text_area("seo_result_author", value=author, height=68, label_visibility="collapsed")
 
-    st.markdown('<div class="result-label">3. 메타태그2 description (카페24 SEO 입력)</div>', unsafe_allow_html=True)
-    st.text_area("description_hidden", value=description, height=120, label_visibility="collapsed")
+    section_header("3. 메타태그2 description (카페24 SEO 입력)")
+    st.text_area("seo_result_description", value=description, height=120, label_visibility="collapsed")
 
-    st.markdown('<div class="result-label">4. 메타태그3 keywords (카페24 SEO 입력)</div>', unsafe_allow_html=True)
-    st.text_area("keywords_hidden", value=keywords, height=160, label_visibility="collapsed")
+    section_header("4. 메타태그3 keywords (카페24 SEO 입력)")
+    st.text_area("seo_result_keywords", value=keywords, height=160, label_visibility="collapsed")
 
-    st.markdown('<div class="result-label">5. 상품 이미지 alt 텍스트</div>', unsafe_allow_html=True)
-    st.text_area("alt_hidden", value=alt_text, height=68, label_visibility="collapsed")
+    section_header("5. 상품 이미지 alt 텍스트")
+    st.text_area("seo_result_alt", value=alt_text, height=68, label_visibility="collapsed")
 
     plain_output = "\n".join([
         f"1.브라우저 타이틀(title) : {title}",
@@ -158,43 +176,41 @@ def render_result(data: dict):
         mime="text/plain",
         use_container_width=True,
     )
-    st.code(plain_output, language="text")
 
 def app():
     st.markdown(
         """
         <style>
         .seo-card {
-            background:#ffffff; border:1px solid #ececec; border-radius:22px;
-            padding:22px; margin:8px 0 18px 0;
+            background:#ffffff;
+            border:1px solid #ececec;
+            border-radius:22px;
+            padding:22px;
+            margin:8px 0 18px 0;
             box-shadow:0 6px 18px rgba(0,0,0,0.04);
         }
         .seo-chip {
-            display:inline-block; padding:6px 10px; border-radius:999px;
-            font-size:12px; background:#111; color:#fff; margin-bottom:8px;
+            display:inline-block;
+            padding:6px 10px;
+            border-radius:999px;
+            font-size:12px;
+            background:#111;
+            color:#fff;
+            margin-bottom:8px;
         }
         .seo-help {
-            color:#666; font-size:14px; line-height:1.7;
-        }
-        .result-label {
-            color:#111111 !important;
-            font-size:18px;
-            font-weight:800;
-            line-height:1.5;
-            margin:14px 0 8px 2px;
-            background:#f4f4f6;
-            border:1px solid #e5e5e8;
-            border-radius:12px;
-            padding:10px 14px;
-        }
-        .stTextArea label, .stTextInput label, .stSelectbox label {
-            color:#111111 !important;
-            font-weight:700 !important;
-            opacity:1 !important;
+            color:#d1d5db;
+            font-size:14px;
+            line-height:1.7;
         }
         .stTextArea textarea, .stTextInput input {
             color:#111111 !important;
             background:#ffffff !important;
+        }
+        .stTextArea label, .stTextInput label, .stSelectbox label {
+            color:#ffffff !important;
+            font-weight:700 !important;
+            opacity:1 !important;
         }
         </style>
         """,
@@ -205,6 +221,9 @@ def app():
     st.markdown("### 미샵 SEO 생성기")
     st.caption(f"프롬프트 버전: {PROMPT_VERSION}")
 
+    with st.expander("이 기능은 어떻게 쓰나요?"):
+        st.write("상품 URL, 상품명, 상품 정보를 입력하고 SEO 생성을 누르면 카페24에 붙여넣을 1~5 항목이 생성됩니다.")
+
     st.markdown('<div class="seo-card">', unsafe_allow_html=True)
     product_url = st.text_input("상품 URL", placeholder="https://www.misharp.co.kr/product/detail.html?product_no=...")
     product_name = st.text_input("상품명", placeholder="예: 아멜리 비조 트렌치 자켓")
@@ -214,7 +233,7 @@ def app():
         height=220,
     )
 
-    col1, col2 = st.columns([1,1])
+    col1, col2 = st.columns([1, 1])
     with col1:
         model_name = st.selectbox("모델", ["gpt-4.1-mini", "gpt-4.1"], index=0)
     with col2:
@@ -227,24 +246,10 @@ def app():
             with st.spinner("AI 검색 최적화 SEO를 생성하는 중입니다..."):
                 try:
                     result = call_model(product_url, product_name, product_info, model_name)
-                    if author_default:
-                        result["author"] = author_default
+                    result["author"] = author_default
                     st.session_state["seo_result"] = result
                 except Exception as e:
                     st.error(f"생성 중 오류가 발생했습니다: {e}")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="seo-card seo-help">', unsafe_allow_html=True)
-    st.markdown(
-        """
-        **반영된 포인트**
-        - 검색엔진 SEO + AI 검색 노출 의도 동시 반영
-        - 숏폼 검색 키워드 감안
-        - 상황형/체형고민형/타깃형 키워드 조합
-        - 결과는 카페24에 바로 복붙 가능한 1~5 항목 형식
-        - 결과 영역 타이틀 가시성 개선
-        """
-    )
     st.markdown('</div>', unsafe_allow_html=True)
 
     if "seo_result" in st.session_state:
